@@ -22,7 +22,7 @@ import java.net.URISyntaxException
 class WebSocketService: Service(){
     companion object{
         const val TAG = "WebSocketService"
-        const val SERVER_URL = "http://192.168.40.151:5000"
+        const val SERVER_URL = "http://192.168.40.238:5000"
         const val USER_ID = "user_123"
         const val CHANNEL_ID = "WebSocketServiceChannel"
     }

@@ -22,7 +22,7 @@ import java.net.URISyntaxException
 class WebSocketService: Service(){
     companion object{
         const val TAG = "WebSocketService"
-        const val SERVER_URL = "http://192.168.40.238:5000"
+        const val SERVER_URL = "http://127.0.0.1:5000"
         const val USER_ID = "user_123"
         const val CHANNEL_ID = "WebSocketServiceChannel"
     }
@@ -34,6 +34,7 @@ class WebSocketService: Service(){
         createNotifChannel()
         try{
             mSocket = IO.socket(SERVER_URL)
+            mSocket.connect()
         }
         catch (e: URISyntaxException) {
             Log.e(TAG, "Error creeating socket", e)
@@ -75,7 +76,6 @@ class WebSocketService: Service(){
                 .build()
             startForeground(3, notif)
         }
-        mSocket.connect()
 
         return START_STICKY
     }

@@ -1,17 +1,23 @@
 package com.example.webserverapp
 
+import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.graphics.Bitmap
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.window.OnBackInvokedCallback
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 
@@ -20,12 +26,13 @@ class MainActivity : ToMainCallback, AppCompatActivity() {
     lateinit var ipPiece: EditText
     lateinit var portPiece: EditText
     lateinit var connectBtn: MaterialButton
-    lateinit var webFiled: WebView
+    lateinit var webField: WebView
     lateinit var connectField: LinearLayout
     lateinit var webLayoutField: LinearLayout
 
     var webSocketService: WebSocketService? = null
     var isBound = true
+    var currentLink = "text"
 
     companion object{
         const val MODE_WAIT = 2
@@ -42,7 +49,10 @@ class MainActivity : ToMainCallback, AppCompatActivity() {
         ipPiece = findViewById(R.id.ip_edit)
         portPiece = findViewById(R.id.port_edit)
         connectBtn = findViewById(R.id.try_connect_btn)
-        webFiled = findViewById(R.id.web_field)
+
+        webField = findViewById(R.id.web_field)
+        webField.settings.javaScriptEnabled = true
+
         connectField = findViewById(R.id.connect_info_field)
         webLayoutField = findViewById(R.id.web_content_field)
 
@@ -61,6 +71,35 @@ class MainActivity : ToMainCallback, AppCompatActivity() {
                 startService(serviceIntent)
             }
             bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
+        }
+
+        webField.webViewClient = object : WebViewClient(){
+            override fun shouldOverrideUrlLoading(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): Boolean {
+                view?.loadUrl(request?.url.toString())
+                return true
+            }
+
+            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+            }
+        }
+
+        webField.webChromeClient = object: WebChromeClient(){
+            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                super.onProgressChanged(view, newProgress)
+            }
+
+            override fun onReceivedTitle(view: WebView?, title: String?) {
+                super.onReceivedTitle(view, title)
+                supportActionBar?.title = currentLink
+            }
         }
     }
 
@@ -85,6 +124,11 @@ class MainActivity : ToMainCallback, AppCompatActivity() {
             if(modeIndicate == MODE_UNSUCCESSFUL) R.drawable.red_interactive_board_4dp
             else if(modeIndicate == MODE_WAIT) R.drawable.yellow_interactive_board_4dp
             else R.drawable.green_intercative_board_4dp))
+    }
+
+    override fun followTheLink(link: String){
+        webField.loadUrl(link)
+        currentLink = link
     }
 
     override fun setIndicateMode(modeField: Int, modeIndicate: Int) {

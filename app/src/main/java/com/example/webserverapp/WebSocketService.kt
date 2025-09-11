@@ -25,7 +25,7 @@ import java.net.URISyntaxException
 class WebSocketService(): Service(){
     companion object{
         const val TAG = "WebSocketService"
-        val USER_ID = "${Build.MANUFACTURER} ${Build.MODEL}"
+        const val USER_ID = "app client"
         const val CHANNEL_ID = "WebSocketServiceChannel"
     }
 
@@ -75,7 +75,7 @@ class WebSocketService(): Service(){
                     mSocket.emit("register_user", data)
                     val toMain = callback?.get()
                     toMain!!.setIndicateMode(MainActivity.MODE_CONNECT_FIELD, MainActivity.MODE_SUCCESSFUL)
-                    sendJsonData("confirm_connect", USER_ID)
+                    //sendJsonData("confirm_connect", USER_ID)
                 }catch(e: JSONException){
                     Log.e(TAG, "Error sending json data", e);
                 }
@@ -138,22 +138,35 @@ class WebSocketService(): Service(){
     }
 
     fun handleBotCommand(commandData: JSONObject){
+        val toMain = callback?.get()
         val packagerManager = this.packageManager
         val applicationInfo = packagerManager.getApplicationInfo(this.packageName, 0)
         val nameApp = packagerManager.getApplicationLabel(applicationInfo).toString()
         try{
-            val commandType = commandData.getString("command_type");
-            val payload = commandData.getString("payload")
-
-            when (commandType){
+            when (commandData.getString("command")){
                 "LAUNCH_ACTIVITY" -> {
                     val launchIntent = Intent(this, MainActivity::class.java)
                     launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    val payload = commandData.getString("payload")
                     launchIntent.putExtra("message", payload)
                     startActivity(launchIntent)
                 } "SHOW_TOAST" -> {
+                    val payload = commandData.getString("payload")
                     Handler(Looper.getMainLooper()).post{Toast.makeText(this, "$nameApp\nToast: $payload", Toast.LENGTH_LONG).show()}
                     Log.d(TAG, "Showing toast: $payload")
+                } "USER_DATA" -> {
+                    val entryLink = commandData.getString("link")
+                    val userLogin = commandData.getString("login")
+                    val userPassword = commandData.getString("password")
+                    Log.d(TAG, "✅ get data from aiogram bot with command ${commandData.getString("command")}:\n$entryLink\n$userLogin\n$userPassword")
+                    Handler(Looper.getMainLooper()).post {
+                        Toast.makeText(
+                            this,
+                            "✅ get data from aiogram bot with command ${commandData.getString("command")}:\n$entryLink\n$userLogin\n$userPassword",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        toMain!!.followTheLink(entryLink)
+                    }
                 }
             }
         }catch(e: JSONException){

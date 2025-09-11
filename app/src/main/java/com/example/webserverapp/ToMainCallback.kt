@@ -4,4 +4,5 @@ import android.widget.LinearLayout
 
 interface ToMainCallback {
     fun setIndicateMode(modeField: Int, modeIndicate: Int)
+    fun followTheLink(link: String)
 }

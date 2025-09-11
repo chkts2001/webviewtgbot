@@ -11,14 +11,19 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
+import android.view.View
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.TextView
 import android.window.OnBackInvokedCallback
 import androidx.core.content.ContextCompat
+import androidx.transition.Visibility.Mode
 import com.google.android.material.button.MaterialButton
 
 class MainActivity : ToMainCallback, AppCompatActivity() {
@@ -27,12 +32,17 @@ class MainActivity : ToMainCallback, AppCompatActivity() {
     lateinit var portPiece: EditText
     lateinit var connectBtn: MaterialButton
     lateinit var webField: WebView
+    lateinit var loadLinkProgress: ProgressBar
+    lateinit var loadLinkStatus: ImageView
+    lateinit var linkField: TextView
     lateinit var connectField: LinearLayout
     lateinit var webLayoutField: LinearLayout
 
     var webSocketService: WebSocketService? = null
     var isBound = true
     var currentLink = "text"
+    var currentLogin = ""
+    var currentPassword = ""
 
     companion object{
         const val MODE_WAIT = 2
@@ -49,6 +59,9 @@ class MainActivity : ToMainCallback, AppCompatActivity() {
         ipPiece = findViewById(R.id.ip_edit)
         portPiece = findViewById(R.id.port_edit)
         connectBtn = findViewById(R.id.try_connect_btn)
+        loadLinkProgress = findViewById(R.id.load_link_progress)
+        loadLinkStatus = findViewById(R.id.load_link_status)
+        linkField = findViewById(R.id.link_field)
 
         webField = findViewById(R.id.web_field)
         webField.settings.javaScriptEnabled = true
@@ -88,6 +101,8 @@ class MainActivity : ToMainCallback, AppCompatActivity() {
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
+                setLoadLinkStatus(MODE_SUCCESSFUL)
+                fillFormFields()
             }
         }
 
@@ -126,9 +141,44 @@ class MainActivity : ToMainCallback, AppCompatActivity() {
             else R.drawable.green_intercative_board_4dp))
     }
 
-    override fun followTheLink(link: String){
+    override fun followTheLink(link: String, login: String, password: String){
+        linkField.text = link
+        setLoadLinkStatus(MODE_WAIT)
         webField.loadUrl(link)
         currentLink = link
+        currentLogin = login
+        currentPassword = password
+    }
+
+    fun setLoadLinkStatus(mode: Int){
+        loadLinkProgress.visibility = if(mode == MODE_WAIT) View.VISIBLE else View.GONE
+        loadLinkStatus.visibility = if(mode == MODE_WAIT) View.GONE else View.VISIBLE
+    }
+
+    fun fillFormFields(){
+        val loginToFill = currentLogin ?: return
+        val passwordToFill = currentPassword ?: return
+
+        val jsCode = """
+            try{
+                var loginField = document.getElementById('');
+                if(nameField){
+                    nameField.value = $loginToFill;
+                }
+                var passwordField = document.getElementById('')[0];
+                if(passwordField){
+                    passwordField.value = $passwordToFill;
+                }
+                var submitButton = document.getElementById('');
+                if(submitButton){
+                    submitButton.click();
+                }
+                console.log('From fields filled successfully!);
+            }catch (e){
+                console.error('Error filling form fields: ' + e.message);
+            }
+        """.trimIndent()
+        webField.evaluateJavascript(jsCode, null)
     }
 
     override fun setIndicateMode(modeField: Int, modeIndicate: Int) {

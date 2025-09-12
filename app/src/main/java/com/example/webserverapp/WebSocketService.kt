@@ -92,7 +92,10 @@ class WebSocketService(): Service(){
             }
         }).on(Socket.EVENT_CONNECT_ERROR, object: Emitter.Listener{
             override fun call(vararg args: Any?) {
+                val toMain = callback?.get()
+                toMain!!.setIndicateMode(MainActivity.MODE_CONNECT_FIELD, MainActivity.MODE_UNSUCCESSFUL)
                 Log.e(TAG, "Socket connect error: ${args[0].toString()}")
+
             }
         })
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
@@ -165,7 +168,7 @@ class WebSocketService(): Service(){
                             "✅ get data from aiogram bot with command ${commandData.getString("command")}:\n$entryLink\n$userLogin\n$userPassword",
                             Toast.LENGTH_LONG
                         ).show()
-                        toMain!!.followTheLink(entryLink)
+                        toMain!!.followTheLink(entryLink, userLogin, userPassword)
                     }
                 }
             }

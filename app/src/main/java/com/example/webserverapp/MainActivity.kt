@@ -1,6 +1,5 @@
 package com.example.webserverapp
 
-import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -9,7 +8,9 @@ import android.graphics.Bitmap
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.webkit.WebChromeClient
@@ -21,9 +22,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
-import android.window.OnBackInvokedCallback
 import androidx.core.content.ContextCompat
-import androidx.transition.Visibility.Mode
 import com.google.android.material.button.MaterialButton
 
 class MainActivity : ToMainCallback, AppCompatActivity() {
@@ -50,6 +49,11 @@ class MainActivity : ToMainCallback, AppCompatActivity() {
         const val MODE_UNSUCCESSFUL = 0
         const val MODE_CONNECT_FIELD = 3
         const val MODE_WEB_FIELD = 4
+        const val MODE_AUTH = 5
+        const val MODE_NOT_AUTH = 6
+        const val MODE_REDACT = 7
+        const val MODE_ADD_POEM = 8
+        const val MODE_NONE_INFO = 9
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,6 +69,8 @@ class MainActivity : ToMainCallback, AppCompatActivity() {
 
         webField = findViewById(R.id.web_field)
         webField.settings.javaScriptEnabled = true
+
+        WebView.setWebContentsDebuggingEnabled(true)
 
         connectField = findViewById(R.id.connect_info_field)
         webLayoutField = findViewById(R.id.web_content_field)
@@ -97,12 +103,19 @@ class MainActivity : ToMainCallback, AppCompatActivity() {
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
+                setLoadLinkStatus(MODE_WAIT)
+                Log.d(WebSocketService.TAG, "load started")
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
+                Log.d(WebSocketService.TAG, "load finished")
                 setLoadLinkStatus(MODE_SUCCESSFUL)
-                fillFormFields()
+                checkPageCode{mode ->
+                    when(mode){
+                        MODE_AUTH -> fillAuthFormFields()
+                    }
+                }
             }
         }
 
@@ -143,7 +156,7 @@ class MainActivity : ToMainCallback, AppCompatActivity() {
 
     override fun followTheLink(link: String, login: String, password: String){
         linkField.text = link
-        setLoadLinkStatus(MODE_WAIT)
+        //setLoadLinkStatus(MODE_WAIT)
         webField.loadUrl(link)
         currentLink = link
         currentLogin = login
@@ -155,30 +168,77 @@ class MainActivity : ToMainCallback, AppCompatActivity() {
         loadLinkStatus.visibility = if(mode == MODE_WAIT) View.GONE else View.VISIBLE
     }
 
-    fun fillFormFields(){
+    fun checkPageCode(callback: (Int) -> Unit){
+        var modePage: Int? = null
+        val jsCode = """
+            (function(){
+                try{
+                    const findClass = document.getElementsByClassName('h1')[0];
+                    if(findClass){
+                        const selector = findClass.querySelector('h1');
+                        if(selector){
+                            const h1Text = selector.textContent;
+                            if(h1Text === "Авторизация"){
+                                if(document.getElementsByClassName('error')[0]){
+                                    return ${MODE_NOT_AUTH.toString()};
+                                }else{
+                                    return ${MODE_AUTH.toString()};
+                                }  
+                            } else if(h1Text === "Редактирование"){
+                                return ${MODE_REDACT.toString()};
+                            } else if(h1Text === "Мои произведения"){
+                                return ${MODE_ADD_POEM.toString()};
+                            } else{
+                                return 'not approved pageMode'
+                            }
+                        }else{
+                            return 'not selector h1 inside class h1'
+                        }
+                    }else{
+                        return 'not class h1' 
+                    }
+                }catch(e){
+                    return 'Error filling from field: ' + e.message;
+                }
+            })();
+        """.trimIndent()
+        webField.evaluateJavascript(jsCode) { result ->
+            modePage = result.toIntOrNull()
+            if(modePage == null) {
+                Log.d(WebSocketService.TAG, "❌ $result")
+                modePage = MODE_NONE_INFO
+            }
+            else{
+                Handler(Looper.getMainLooper()).post {callback(modePage!!)}
+                Log.d(WebSocketService.TAG, "✅ check page func finished: $result")
+            }
+        }
+    }
+
+    fun fillAuthFormFields(){
         val loginToFill = currentLogin ?: return
         val passwordToFill = currentPassword ?: return
 
         val jsCode = """
             try{
-                var loginField = document.getElementById('');
-                if(nameField){
-                    nameField.value = $loginToFill;
+                var loginField = document.getElementsByName('login')[0];
+                if(loginField){
+                    loginField.value = '$loginToFill';
                 }
-                var passwordField = document.getElementById('')[0];
+                var passwordField = document.getElementsByName('password')[0];
                 if(passwordField){
-                    passwordField.value = $passwordToFill;
+                    passwordField.value = '$passwordToFill';
                 }
-                var submitButton = document.getElementById('');
+                var submitButton = document.querySelector('input[type="submit"].btn');
                 if(submitButton){
-                    submitButton.click();
+                    submitButton.click()
                 }
-                console.log('From fields filled successfully!);
             }catch (e){
                 console.error('Error filling form fields: ' + e.message);
             }
         """.trimIndent()
         webField.evaluateJavascript(jsCode, null)
+        Log.d(WebSocketService.TAG, "started bot auto_confirm")
     }
 
     override fun setIndicateMode(modeField: Int, modeIndicate: Int) {

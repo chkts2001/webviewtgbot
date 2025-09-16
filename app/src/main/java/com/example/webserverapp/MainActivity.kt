@@ -114,6 +114,8 @@ class MainActivity : ToMainCallback, AppCompatActivity() {
                 checkPageCode{mode ->
                     when(mode){
                         MODE_AUTH -> fillAuthFormFields()
+                        MODE_REDACT -> sendJsonToAiogram(MODE_REDACT, "ok")
+                        MODE_NOT_AUTH -> sendJsonToAiogram(MODE_NOT_AUTH, "error: upload page not correct login or password")
                     }
                 }
             }
@@ -163,6 +165,12 @@ class MainActivity : ToMainCallback, AppCompatActivity() {
         currentPassword = password
     }
 
+    override fun sendJsonToAiogram(mode: Int, info: String) {
+        when(mode){
+            MODE_REDACT, MODE_NOT_AUTH -> webSocketService!!.sendJsonData("check_ud", info)
+        }
+    }
+
     fun setLoadLinkStatus(mode: Int){
         loadLinkProgress.visibility = if(mode == MODE_WAIT) View.VISIBLE else View.GONE
         loadLinkStatus.visibility = if(mode == MODE_WAIT) View.GONE else View.VISIBLE
@@ -206,6 +214,7 @@ class MainActivity : ToMainCallback, AppCompatActivity() {
             modePage = result.toIntOrNull()
             if(modePage == null) {
                 Log.d(WebSocketService.TAG, "❌ $result")
+                sendJsonToAiogram(MODE_NOT_AUTH, "error: inside js not correct login or password")
                 modePage = MODE_NONE_INFO
             }
             else{
@@ -240,6 +249,8 @@ class MainActivity : ToMainCallback, AppCompatActivity() {
         webField.evaluateJavascript(jsCode, null)
         Log.d(WebSocketService.TAG, "started bot auto_confirm")
     }
+
+
 
     override fun setIndicateMode(modeField: Int, modeIndicate: Int) {
         if(modeField == MODE_CONNECT_FIELD) connectField.setIndicateMode(modeIndicate)
